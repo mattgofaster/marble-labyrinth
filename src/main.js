@@ -8,11 +8,11 @@ const HOLE_R = 0.4;
 const FALL_AT = HOLE_R - BALL_R * 0.3; // ball centre this close to a pit centre = it drops
 const LIP = HOLE_R + BALL_R * 0.25; // inside this range the pit edge pulls the ball in
 // Tilt speed setting: cells/s² of acceleration at a full 90° tilt.
-const SPEEDS = { gentle: 70, normal: 105, fast: 150 };
-const MAX_SPEED = 20;
-const DAMPING = 0.55; // rolling resistance, per second
+const SPEEDS = { gentle: 130, normal: 200, fast: 300 };
+const MAX_SPEED = 28; // cells/s; at 240 physics steps/s that's still < 0.12 cells per step
+const DAMPING = 0.35; // rolling resistance, per second
 const BOUNCE = 0.4;
-const MAX_TILT_DEG = 25; // tilting further than this doesn't go any faster
+const MAX_TILT_DEG = 20; // tilting further than this doesn't go any faster
 const DEADZONE_DEG = 1.2;
 const KEY_TILT = 0.42;
 const STEP = 1 / 240;

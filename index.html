@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#102019">
+  <title>Marble Labyrinth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <header class="hud">
+      <div class="hud-level">
+        <span id="hud-num">Board 1 of 6</span>
+        <strong id="hud-name">First Roll</strong>
+      </div>
+      <div class="hud-time">
+        <span id="hud-timer">0:00.0</span>
+        <span id="hud-sub">Best –</span>
+      </div>
+    </header>
+
+    <main id="stage">
+      <canvas id="board" aria-label="Labyrinth board"></canvas>
+      <div id="stick" hidden><div id="stick-knob"></div></div>
+    </main>
+
+    <nav class="bar">
+      <button id="btn-menu" type="button">Menu</button>
+      <button id="btn-recenter" type="button">Recenter</button>
+      <button id="btn-sound" type="button" aria-pressed="true">Sound on</button>
+    </nav>
+
+    <section id="menu" class="overlay">
+      <div class="card">
+        <p class="eyebrow" id="menu-eyebrow">Tilt maze · 6 boards</p>
+        <h1>Marble Labyrinth</h1>
+        <p class="lede">Tilt your phone to roll the steel marble into the gold cup. Drop into a pit and you go back to the start, or to the last flag you touched.</p>
+        <div class="row">
+          <button id="btn-play" class="primary" type="button">Play</button>
+          <button id="btn-restart" type="button" hidden>Restart board</button>
+        </div>
+        <ol class="levels" id="level-list"></ol>
+        <p class="fine" id="menu-hint">Hold the phone the way you like before the countdown ends. That angle becomes level. No tilt sensor? Use the arrow keys, or drag on the board.</p>
+      </div>
+    </section>
+
+    <section id="complete" class="overlay" hidden>
+      <div class="card">
+        <p class="eyebrow" id="done-eyebrow">Board 1 cleared</p>
+        <p class="big-time" id="done-time">0:00.0</p>
+        <p class="lede" id="done-detail"></p>
+        <div class="row">
+          <button id="btn-next" class="primary" type="button">Next board</button>
+          <button id="btn-replay" type="button">Replay</button>
+        </div>
+        <button id="btn-done-menu" class="link" type="button">All boards</button>
+      </div>
+    </section>
+
+    <div id="toast" role="status" hidden></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -7,11 +7,12 @@ const BALL_R = 0.34;
 const HOLE_R = 0.4;
 const FALL_AT = HOLE_R - BALL_R * 0.3; // ball centre this close to a pit centre = it drops
 const LIP = HOLE_R + BALL_R * 0.25; // inside this range the pit edge pulls the ball in
-const GRAVITY = 42; // cells/s² at a full 90° tilt
-const MAX_SPEED = 14;
-const DAMPING = 0.75; // rolling resistance, per second
+// Tilt speed setting: cells/s² of acceleration at a full 90° tilt.
+const SPEEDS = { gentle: 70, normal: 105, fast: 150 };
+const MAX_SPEED = 20;
+const DAMPING = 0.55; // rolling resistance, per second
 const BOUNCE = 0.4;
-const MAX_TILT_DEG = 35;
+const MAX_TILT_DEG = 25; // tilting further than this doesn't go any faster
 const DEADZONE_DEG = 1.2;
 const KEY_TILT = 0.42;
 const STEP = 1 / 240;
@@ -48,6 +49,7 @@ function loadSave() {
   return { best: {}, unlocked: 1, muted: false };
 }
 const save = loadSave();
+if (!SPEEDS[save.speed]) save.speed = 'normal';
 function persist() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -160,11 +162,15 @@ const input = {
 };
 
 function screenAngle() {
-  const a =
-    screen.orientation && typeof screen.orientation.angle === 'number'
-      ? screen.orientation.angle
-      : window.orientation || 0;
-  return ((a % 360) + 360) % 360;
+  // iOS keeps the old window.orientation (0, 90, -90) and it's the most
+  // dependable source there; fall back to the newer Screen Orientation API.
+  let a = typeof window.orientation === 'number' ? window.orientation : null;
+  if (a == null && screen.orientation && typeof screen.orientation.angle === 'number') a = screen.orientation.angle;
+  a = (((a || 0) % 360) + 360) % 360;
+  // If the viewport is clearly landscape but no angle was reported, assume
+  // the usual direction rather than leaving the game sideways.
+  if ((a === 0 || a === 180) && window.innerWidth > window.innerHeight * 1.15) a = 90;
+  return a;
 }
 
 // The game is always drawn upright in the phone's portrait orientation (see
@@ -346,7 +352,12 @@ function applyPortraitLock() {
   app.style.height = `${sideways ? w : h}px`;
   app.style.transform = `translate(-50%, -50%) rotate(${-lockAngle}deg)`;
   stick.hidden = true;
+  if (!rotateTipShown) {
+    rotateTipShown = true;
+    toast('Tip: turn on Portrait Orientation Lock in Control Center to stop the screen from spinning while you tilt.', 6000);
+  }
 }
+let rotateTipShown = false;
 
 function recenter() {
   if (motionLive()) {
@@ -405,8 +416,9 @@ function collideWalls() {
 
 // Returns false when the ball dropped or finished, ending this frame's steps.
 function physicsStep(dt) {
-  ball.vx += input.tilt.x * GRAVITY * dt;
-  ball.vy += input.tilt.y * GRAVITY * dt;
+  const gravity = SPEEDS[save.speed] || SPEEDS.normal;
+  ball.vx += input.tilt.x * gravity * dt;
+  ball.vy += input.tilt.y * gravity * dt;
 
   const targets = level.holes.concat([level.goal]);
   for (const h of targets) {
@@ -919,6 +931,20 @@ $('btn-menu').addEventListener('click', () => {
   togglePause();
 });
 $('btn-recenter').addEventListener('click', recenter);
+
+function applySpeed() {
+  document.querySelectorAll('#speed-picker button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.speed === save.speed));
+  });
+}
+document.querySelectorAll('#speed-picker button').forEach((b) => {
+  b.addEventListener('click', () => {
+    save.speed = b.dataset.speed;
+    persist();
+    applySpeed();
+  });
+});
+applySpeed();
 
 function applySound() {
   sound.setMuted(save.muted);

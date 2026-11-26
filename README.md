@@ -17,4 +17,4 @@ Tilt-maze game for the phone. Roll the steel marble into the gold cup without dr
 
 ## Tuning
 
-Constants at the top of `src/main.js`: `GRAVITY` (how fast tilt accelerates the marble), `DAMPING` (rolling resistance), `MAX_TILT_DEG` (tilt angle that counts as full tilt), `BOUNCE`, `HOLE_R`.
+Constants at the top of `src/main.js`: `SPEEDS` (acceleration for the Gentle / Normal / Fast tilt settings), `DAMPING` (rolling resistance), `MAX_TILT_DEG` (tilt angle that counts as full tilt), `BOUNCE`, `HOLE_R`.

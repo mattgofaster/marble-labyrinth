@@ -195,6 +195,34 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
+.speed { display: flex; align-items: center; gap: 12px; }
+.speed-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.seg {
+  flex: 1;
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 12px;
+  background: var(--pine);
+}
+.seg button {
+  flex: 1;
+  min-height: 38px;
+  padding: 0 8px;
+  font-size: 14px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 9px;
+  color: var(--muted);
+}
+.seg button[aria-pressed="true"] { background: var(--pine-3); color: var(--ink); border-color: rgba(228, 181, 76, 0.6); }
+
 .levels {
   list-style: none;
   margin: 0;

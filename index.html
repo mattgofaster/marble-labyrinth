@@ -44,6 +44,14 @@
           <button id="btn-play" class="primary" type="button">Play</button>
           <button id="btn-restart" type="button" hidden>Restart board</button>
         </div>
+        <div class="speed">
+          <span class="speed-label" id="speed-label">Tilt speed</span>
+          <div class="seg" id="speed-picker" role="group" aria-labelledby="speed-label">
+            <button type="button" data-speed="gentle">Gentle</button>
+            <button type="button" data-speed="normal">Normal</button>
+            <button type="button" data-speed="fast">Fast</button>
+          </div>
+        </div>
         <ol class="levels" id="level-list"></ol>
         <p class="fine" id="menu-hint">Hold the phone the way you like before the countdown ends. That angle becomes level. No tilt sensor? Use the arrow keys, or drag on the board.</p>
       </div>

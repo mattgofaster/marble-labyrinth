@@ -118,6 +118,7 @@ let respawn = null;
 let animFrom = null;
 let animTo = null;
 let frameImpact = 0;
+let warnedNoTilt = false;
 
 function setPhase(p) {
   phase = p;
@@ -166,24 +167,12 @@ function screenAngle() {
   return ((a % 360) + 360) % 360;
 }
 
+// The game is always drawn upright in the phone's portrait orientation (see
+// applyPortraitLock), so device axes map straight onto the board.
 window.addEventListener('deviceorientation', (e) => {
   if (e.beta == null || e.gamma == null) return;
-  const a = screenAngle();
-  let x;
-  let y;
-  if (a === 90) {
-    x = e.beta;
-    y = -e.gamma;
-  } else if (a === 270) {
-    x = -e.beta;
-    y = e.gamma;
-  } else if (a === 180) {
-    x = -e.gamma;
-    y = -e.beta;
-  } else {
-    x = e.gamma;
-    y = e.beta;
-  }
+  const x = e.gamma;
+  const y = e.beta;
   if (!input.raw) input.raw = { x, y };
   else {
     input.raw.x += (x - input.raw.x) * 0.5;
@@ -213,6 +202,11 @@ function updateTilt(dt) {
   let tx;
   let ty;
   let showOnScreen = true;
+  // Tilt data can start arriving after the countdown (e.g. the permission
+  // prompt was still open). Take the first reading as level instead of
+  // ignoring the sensor forever.
+  if (motionLive() && !input.neutral) input.neutral = { ...input.raw };
+
   if (input.drag) {
     tx = input.drag.tx;
     ty = input.drag.ty;
@@ -270,13 +264,18 @@ stage.addEventListener('pointerdown', (e) => {
   stick.style.left = `${e.clientX - r.left}px`;
   stick.style.top = `${e.clientY - r.top}px`;
   knob.style.transform = '';
-  stick.hidden = false;
+  stick.hidden = !!lockAngle; // its position would be off while counter-rotated
 });
 stage.addEventListener('pointermove', (e) => {
   const d = input.drag;
   if (!d || d.id !== e.pointerId) return;
   let dx = e.clientX - d.ox;
   let dy = e.clientY - d.oy;
+  if (lockAngle) {
+    // Screen-space drag → board-space drag while the app is counter-rotated.
+    const r = (lockAngle * Math.PI) / 180;
+    [dx, dy] = [dx * Math.cos(r) - dy * Math.sin(r), dx * Math.sin(r) + dy * Math.cos(r)];
+  }
   const len = Math.hypot(dx, dy);
   const max = 48;
   if (len > max) {
@@ -297,23 +296,56 @@ stage.addEventListener('pointerup', endDrag);
 stage.addEventListener('pointercancel', endDrag);
 
 // iOS asks permission for motion data, and only from inside a tap.
-let motionAsked = false;
+// Resolves once the viewer has answered, so the countdown starts after the prompt.
+let motionGranted = false;
+const DENIED_MSG =
+  'Motion access was denied. Swipe Safari closed, reopen this page and tap Allow. Until then, drag on the board to tilt.';
 function requestMotion() {
-  if (motionAsked) return;
-  motionAsked = true;
   const DOE = window.DeviceOrientationEvent;
-  if (!DOE) return;
+  if (motionGranted || !DOE) return Promise.resolve();
   if (!window.isSecureContext) {
     toast('Tilt needs an https:// address. Drag on the board to play for now.', 4500);
+    return Promise.resolve();
+  }
+  if (typeof DOE.requestPermission !== 'function') {
+    motionGranted = true; // Android and older iOS: no prompt needed
+    return Promise.resolve();
+  }
+  return DOE.requestPermission()
+    .then((r) => {
+      motionGranted = r === 'granted';
+      if (!motionGranted) toast(DENIED_MSG, 6000);
+    })
+    .catch(() => toast(DENIED_MSG, 6000));
+}
+
+// ---------- Portrait lock ----------
+// iOS Safari can't lock orientation, so when the phone turns sideways we
+// rotate the whole app back so it stays upright relative to the phone.
+let lockAngle = 0;
+function applyPortraitLock() {
+  try {
+    screen.orientation?.lock?.('portrait').catch(() => {});
+  } catch {}
+  const a = screenAngle();
+  const app = $('app');
+  lockAngle = a === 90 || a === 270 || a === 180 ? a : 0;
+  // Only counter-rotate on touch devices: a wide desktop window isn't "landscape".
+  const isPhone = matchMedia('(pointer: coarse)').matches;
+  if (!isPhone || lockAngle === 0) {
+    lockAngle = 0;
+    app.classList.remove('rotated');
+    app.style.width = app.style.height = app.style.transform = '';
     return;
   }
-  if (typeof DOE.requestPermission === 'function') {
-    DOE.requestPermission()
-      .then((r) => {
-        if (r !== 'granted') toast('Motion access is off. Drag on the board to tilt instead.', 4500);
-      })
-      .catch(() => toast('Motion access is off. Drag on the board to tilt instead.', 4500));
-  }
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const sideways = lockAngle !== 180;
+  app.classList.add('rotated');
+  app.style.width = `${sideways ? h : w}px`;
+  app.style.height = `${sideways ? w : h}px`;
+  app.style.transform = `translate(-50%, -50%) rotate(${-lockAngle}deg)`;
+  stick.hidden = true;
 }
 
 function recenter() {
@@ -464,6 +496,10 @@ function frame(now) {
       if (motionLive()) input.neutral = { ...input.raw };
       setPhase('play');
       sound.blip(true);
+      if (motionGranted && !motionLive() && matchMedia('(pointer: coarse)').matches && !warnedNoTilt) {
+        warnedNoTilt = true;
+        toast('No tilt readings yet. Drag on the board to play, or reload the page and allow motion access.', 5000);
+      }
     }
   } else if (phase === 'falling') {
     runTime += dt;
@@ -778,10 +814,7 @@ function buildLevelList() {
     best.className = 'lv-best';
     best.textContent = locked ? 'Locked' : save.best[i] != null ? `Best ${fmt(save.best[i])}` : 'Not cleared';
     b.append(name, best);
-    b.addEventListener('click', () => {
-      beginSession();
-      startLevel(i);
-    });
+    b.addEventListener('click', () => beginSession().then(() => startLevel(i)));
     li.append(b);
     list.append(li);
   });
@@ -856,20 +889,22 @@ async function keepAwake() {
 }
 
 // Everything that needs a tap: motion permission, audio, wake lock.
+// The motion prompt must be the first thing the tap does on iOS.
 function beginSession() {
-  requestMotion();
+  const asked = requestMotion();
   sound.init();
   keepAwake();
+  return asked;
 }
 
 $('btn-play').addEventListener('click', () => {
-  beginSession();
+  const asked = beginSession();
   if (phase === 'paused') {
     resume();
     return;
   }
   const next = Math.min(save.unlocked - 1, LEVELS.length - 1);
-  startLevel(next);
+  asked.then(() => startLevel(next));
 });
 $('btn-restart').addEventListener('click', () => startLevel(levelIndex));
 $('btn-next').addEventListener('click', () => startLevel(levelIndex + 1));
@@ -906,8 +941,14 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-window.addEventListener('resize', resize);
-screen.orientation?.addEventListener?.('change', resize);
+function relayout() {
+  applyPortraitLock();
+  resize();
+}
+window.addEventListener('resize', relayout);
+window.addEventListener('orientationchange', () => setTimeout(relayout, 50));
+screen.orientation?.addEventListener?.('change', relayout);
+applyPortraitLock();
 
 // Show board 1 behind the title card so the first screen isn't empty.
 level = parseLevel(Math.min(save.unlocked - 1, LEVELS.length - 1));
